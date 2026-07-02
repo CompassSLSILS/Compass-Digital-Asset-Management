@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Compass Digital Asset Library</title>
+<style>
+  :root {
+    --navy: #1B3A5C;
+    --teal: #2DB5AA;
+    --teal-light: #E6F7F6;
+    --teal-dark: #1E9A8F;
+    --gray-50: #F8FAFB;
+    --gray-100: #F0F4F7;
+    --gray-200: #E1E8EF;
+    --gray-400: #94A3B8;
+    --gray-600: #64748B;
+    --gray-800: #1E293B;
+    --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--gray-50); color: var(--gray-800); min-height: 100vh; }
+
+  /* ── Header ── */
+  .header {
+    background: var(--navy); color: white;
+    padding: 22px 32px; display: flex; align-items: center;
+    justify-content: space-between; flex-wrap: wrap; gap: 14px;
+  }
+  .header-logo { display: flex; align-items: center; gap: 14px; }
+  .logo-mark {
+    width: 44px; height: 44px; background: var(--teal); border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .header-left h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.2px; }
+  .header-left p  { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+  .request-btn {
+    background: var(--teal); color: white; border: none; padding: 10px 20px;
+    border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+    display: flex; align-items: center; gap: 7px;
+    transition: background 0.15s; white-space: nowrap; font-family: var(--font);
+  }
+  .request-btn:hover { background: var(--teal-dark); }
+
+  /* ── Controls ── */
+  .controls {
+    background: white; border-bottom: 1px solid var(--gray-200);
+    padding: 14px 32px; display: flex; flex-direction: column; gap: 11px;
+    position: sticky; top: 0; z-index: 10;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+  }
+  .search-bar {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--gray-100); border: 1.5px solid var(--gray-200);
+    border-radius: 10px; padding: 9px 14px; transition: all 0.15s;
+  }
+  .search-bar:focus-within { border-color: var(--teal); background: white; }
+  .search-bar input { border: none; background: transparent; font-size: 14px; color: var(--gray-800); width: 100%; outline: none; }
+  .search-bar input::placeholder { color: var(--gray-400); }
+  .filter-row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+  .filter-label { font-size: 11px; font-weight: 700; color: var(--gray-600); text-transform: uppercase; letter-spacing: 0.6px; white-space: nowrap; }
+  .filter-pill {
+    padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 500;
+    cursor: pointer; border: 1.5px solid var(--gray-200); background: white;
+    color: var(--gray-600); transition: all 0.15s; white-space: nowrap; font-family: var(--font);
+  }
+  .filter-pill:hover { border-color: var(--teal); color: var(--teal-dark); background: var(--teal-light); }
+  .filter-pill.active { background: var(--teal); border-color: var(--teal); color: white; }
+  .filter-divider { width: 1px; height: 22px; background: var(--gray-200); margin: 0 4px; flex-shrink: 0; }
+
+  /* ── Main ── */
+  .main { padding: 24px 32px; max-width: 1400px; margin: 0 auto; }
+  .results-count { font-size: 13px; color: var(--gray-600); margin-bottom: 18px; }
+  .results-count strong { color: var(--navy); }
+
+  /* ── Grid ── */
+  .asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+
+  /* ── Card ── */
+  .asset-card {
+    background: white; border-radius: 14px; border: 1.5px solid var(--gray-200);
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: box-shadow 0.2s, border-color 0.2s, transform 0.15s;
+  }
+  .asset-card:hover {
+    box-shadow: 0 8px 28px rgba(27,58,92,0.13);
+    border-color: var(--teal); transform: translateY(-2px);
+  }
+
+  /* ── Preview ── */
+  .card-preview {
+    width: 100%; height: 180px; position: relative;
+    overflow: hidden; background: var(--gray-100); flex-shrink: 0;
+  }
+  .preview-img {
+    width: 100%; height: 100%; object-fit: cover; display: block;
+    transition: transform 0.3s, opacity 0.3s; opacity: 0;
+  }
+  .preview-img.loaded { opacity: 1; }
+  .asset-card:hover .preview-img.loaded { transform: scale(1.04); }
+  .preview-placeholder {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 8px; transition: opacity 0.3s;
+  }
+  .preview-placeholder.hidden { opacity: 0; pointer-events: none; }
+  .p-icon  { font-size: 44px; }
+  .p-label { font-size: 11px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; opacity: 0.4; }
+  .preview-shimmer {
+    position: absolute; inset: 0;
+    background: linear-gradient(90deg, var(--gray-100) 25%, var(--gray-200) 50%, var(--gray-100) 75%);
+    background-size: 200% 100%; animation: shimmer 1.4s infinite;
+  }
+  .preview-shimmer.done { display: none; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .format-badge-overlay {
+    position: absolute; top: 10px; right: 10px;
+    font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 6px;
+    letter-spacing: 0.3px; text-transform: uppercase;
+  }
+
+  /* ── Card body ── */
+  .card-body { padding: 18px; display: flex; flex-direction: column; gap: 11px; flex: 1; }
+  .card-name { font-size: 15px; font-weight: 700; color: var(--navy); line-height: 1.35; }
+  .use-cases { display: flex; flex-wrap: wrap; gap: 5px; }
+  .use-case-tag { font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 12px; border: 1px solid; }
+  .card-meta { font-size: 12px; color: var(--gray-400); }
+  .card-actions { margin-top: auto; padding-top: 4px; }
+  .action-btn {
+    width: 100%; padding: 10px 16px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; border: none; display: flex; align-items: center; justify-content: center;
+    gap: 7px; text-decoration: none; transition: all 0.15s; font-family: var(--font);
+  }
+  .action-btn.grab { background: var(--teal); color: white; }
+  .action-btn.grab:hover { background: var(--teal-dark); }
+  .action-btn.req { background: white; color: var(--navy); border: 1.5px solid var(--navy); }
+  .action-btn.req:hover { background: var(--navy); color: white; }
+
+  /* ── States ── */
+  .state-box { text-align: center; padding: 60px 20px; color: var(--gray-400); grid-column: 1/-1; }
+  .spinner {
+    width: 32px; height: 32px; border: 3px solid var(--gray-200);
+    border-top-color: var(--teal); border-radius: 50%;
+    animation: spin 0.7s linear infinite; margin: 0 auto 12px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .state-box p { font-size: 15px; margin-top: 4px; }
+  .error-card { background: #FEF2F2; border: 1.5px solid #FECACA; border-radius: 12px; padding: 24px; text-align: center; grid-column: 1/-1; color: #DC2626; }
+  .error-card strong { display: block; margin-bottom: 6px; font-size: 15px; }
+  .error-card small { font-size: 13px; color: #EF4444; }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: white; border-radius: 16px; width: 100%; max-width: 540px;
+    max-height: 92vh; overflow-y: auto;
+    transform: translateY(16px); transition: transform 0.2s;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.22);
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header {
+    background: var(--navy); color: white; padding: 22px 24px;
+    border-radius: 16px 16px 0 0; display: flex;
+    justify-content: space-between; align-items: flex-start; gap: 12px;
+    position: sticky; top: 0; z-index: 2;
+  }
+  .modal-header h2 { font-size: 18px; font-weight: 700; }
+  .modal-header p  { font-size: 13px; color: rgba(255,255,255,0.6); margin-top: 3px; }
+  .modal-close {
+    background: rgba(255,255,255,0.15); border: none; color: white;
+    width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+    font-size: 15px; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background 0.15s; font-family: var(--font);
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.28); }
+  .modal-body { padding: 22px 24px; display: flex; flex-direction: column; gap: 15px; }
+  .form-section-label {
+    font-size: 11px; font-weight: 700; color: var(--gray-400);
+    text-transform: uppercase; letter-spacing: 0.6px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--gray-200); margin-bottom: 2px;
+  }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; color: var(--navy); margin-bottom: 5px; }
+  .req-star { color: #E53E3E; }
+  .form-group input, .form-group textarea, .form-group select {
+    width: 100%; padding: 9px 12px; border: 1.5px solid var(--gray-200);
+    border-radius: 8px; font-size: 14px; color: var(--gray-800);
+    font-family: var(--font); outline: none; transition: border-color 0.15s; background: white;
+  }
+  .form-group input:focus, .form-group textarea:focus, .form-group select:focus { border-color: var(--teal); }
+  .form-group textarea { resize: vertical; min-height: 72px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .modal-footer { padding: 0 24px 22px; display: flex; gap: 10px; }
+  .btn-cancel {
+    flex: 1; padding: 10px; border-radius: 8px;
+    border: 1.5px solid var(--gray-200); background: white; color: var(--gray-600);
+    font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; font-family: var(--font);
+  }
+  .btn-cancel:hover { border-color: var(--gray-400); color: var(--gray-800); }
+  .btn-submit {
+    flex: 2; padding: 10px; border-radius: 8px; border: none;
+    background: var(--teal); color: white; font-size: 14px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s; font-family: var(--font);
+  }
+  .btn-submit:hover { background: var(--teal-dark); }
+  .btn-submit:disabled { background: var(--gray-200); color: var(--gray-400); cursor: not-allowed; }
+  .form-error { background: #FEF2F2; border: 1px solid #FECACA; color: #DC2626; padding: 10px 14px; border-radius: 8px; font-size: 13px; }
+  .priority-row { display: flex; gap: 8px; }
+  .priority-opt {
+    flex: 1; padding: 8px 4px; border-radius: 8px; border: 1.5px solid var(--gray-200);
+    background: white; font-size: 13px; font-weight: 600; cursor: pointer;
+    text-align: center; transition: all 0.15s; font-family: var(--font); color: var(--gray-600);
+  }
+  .priority-opt:hover { border-color: var(--gray-400); }
+  .priority-opt.sel-high { background: #FEF2F2; border-color: #FC8181; color: #C53030; }
+  .priority-opt.sel-med  { background: #FFFBEB; border-color: #F6C24B; color: #92610A; }
+  .priority-opt.sel-low  { background: #F0FDF4; border-color: #68D391; color: #276749; }
+  .success-msg { text-align: center; padding: 44px 24px; }
+  .success-msg .s-icon { font-size: 52px; margin-bottom: 14px; }
+  .success-msg h3 { font-size: 19px; font-weight: 700; color: var(--navy); }
+  .success-msg p { font-size: 14px; color: var(--gray-600); margin-top: 6px; line-height: 1.5; }
+  .btn-done {
+    margin-top: 22px; background: var(--teal); color: white; border: none;
+    padding: 11px 28px; border-radius: 8px; font-size: 14px; font-weight: 600;
+    cursor: pointer; font-family: var(--font); transition: background 0.15s;
+  }
+  .btn-done:hover { background: var(--teal-dark); }
+
+  @media (max-width: 600px) {
+    .header, .controls, .main { padding-left: 16px; padding-right: 16px; }
+    .form-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-logo">
+    <div class="logo-mark">🧭</div>
+    <div class="header-left">
+      <h1>Compass Digital Asset Library</h1>
+      <p>Browse and download official Compass brand materials</p>
+    </div>
+  </div>
+  <button class="request-btn" onclick="openModal(null)">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Request an Asset
+  </button>
+</div>
+
+<div class="controls">
+  <div class="search-bar">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="text" id="searchInput" placeholder="Search assets by name…" oninput="applyFilters()">
+  </div>
+  <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+    <div class="filter-row" id="ucRow"><span class="filter-label">Use Case</span></div>
+    <div class="filter-divider"></div>
+    <div class="filter-row" id="fmtRow"><span class="filter-label">Format</span></div>
+  </div>
+</div>
+
+<div class="main">
+  <p class="results-count" id="resultsCount">&nbsp;</p>
+  <div class="asset-grid" id="assetGrid">
+    <div class="state-box"><div class="spinner"></div><p>Loading assets…</p></div>
+  </div>
+</div>
+
+<!-- Request Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div>
+        <h2>Request an Asset</h2>
+        <p id="modalSub">Tell us what you need and we'll get it made</p>
+      </div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+
+    <div id="modalForm">
+      <div class="modal-body">
+        <div id="formErr" style="display:none"></div>
+
+        <div class="form-section-label">About the Request</div>
+        <div class="form-group">
+          <label>What are you requesting? <span class="req-star">*</span></label>
+          <input id="rName" type="text" placeholder="e.g. CFS hiring flyer in Spanish">
+        </div>
+        <div class="form-group">
+          <label>Type of request</label>
+          <select id="rType">
+            <option value="">Select…</option>
+            <option value="Asset as is">Asset as is — I need an existing asset</option>
+            <option value="Asset with edits">Asset with edits — I need something customized</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Priority</label>
+          <div class="priority-row">
+            <button class="priority-opt" id="p-high" onclick="setPriority('High')">🔴 High</button>
+            <button class="priority-opt" id="p-med"  onclick="setPriority('Medium')">🟡 Medium</button>
+            <button class="priority-opt" id="p-low"  onclick="setPriority('Low')">🟢 Low</button>
+          </div>
+        </div>
+
+        <div class="form-section-label">Timeline</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Due date</label>
+            <input id="rDue" type="date">
+          </div>
+          <div class="form-group">
+            <label>What's driving the deadline?</label>
+            <input id="rDueReason" type="text" placeholder="e.g. Hiring event July 15">
+          </div>
+        </div>
+
+        <div class="form-section-label">About You</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Your name <span class="req-star">*</span></label>
+            <input id="rRequestor" type="text" placeholder="Full name">
+          </div>
+          <div class="form-group">
+            <label>Your email <span class="req-star">*</span></label>
+            <input id="rEmail" type="email" placeholder="you@compasscares.com">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Requesting region</label>
+          <input id="rRegion" type="text" placeholder="e.g. Northern California">
+        </div>
+
+        <div class="form-section-label">Additional Details</div>
+        <div class="form-group">
+          <label>Additional notes</label>
+          <textarea id="rNotes" placeholder="Colors, sizes, copy, language, anything our designers should know…"></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+        <button class="btn-submit" id="submitBtn" onclick="submitRequest()">Submit Request</button>
+      </div>
+    </div>
+
+    <div id="modalSuccess" style="display:none">
+      <div class="success-msg">
+        <div class="s-icon">✅</div>
+        <h3>Request submitted!</h3>
+        <p>Our design team will review your request and follow up via email.</p>
+        <button class="btn-done" onclick="closeModal()">Done</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  const PAT         = 'patlvHrtcLfZ9BB0L.05253b7e93959002058235e73ec7c981d7a521af6ecadcd4ad20815faba17548';
+  const BASE        = 'app5gGIt8gIy1Qc2b';
+  const ASSETS_TBL  = 'tblGs1R5JDFKSvDRF';
+  const REQUEST_TBL = 'tbl1zQEQ78ESOqYKh';
+  const AIRTABLE    = 'https://api.airtable.com/v0';
+
+  // Field IDs – Assets table
+  const AF = {
+    name:     'fldqhv9DHixesytC5',
+    useCase:  'fldelz5FaKzFWh5GZ',
+    asset:    'fldkQQn8LKhK6lwhs',   // attachment with thumbnails
+    link:     'fldkjio6CW9JgBAyr',   // SharePoint download URL
+    format:   'fld5PJCKKlXbzzft4',
+    category: 'fldF5Shg0E1U6d1JA',  // 'Grab it' | 'Request it'
+    updated:  'fldUKGhpms9afJh9V',
+  };
+
+  // Field IDs – Requests table
+  const RF = {
+    name:      'fldpStPuGD2wiW2L7',
+    requestor: 'fld8ItJN1m8TVBHQe',
+    email:     'fldD3fBwAdsgZf9Hh',
+    region:    'fld8qtbhB6wZGt1aX',
+    type:      'fldrNVNnzXrzNZuS9',
+    priority:  'fldByQj0bGrrDCWo9',
+    due:       'fldsAXPsciHALAbfC',
+    dueReason: 'fldc3edZBXSu8Gp4i',
+    notes:     'fldAaoltd7xI8CYCA',
+  };
+
+  // ── Style maps ──────────────────────────────────────────────────────────────
+  const FMT = {
+    '.PDF':     { e:'📄', bg:'#FEF3C7', c:'#92400E', pbg:'#FFFBEB' },
+    '.PNG':     { e:'🖼️', bg:'#DBEAFE', c:'#1E40AF', pbg:'#EFF6FF' },
+    '.JPG':     { e:'📷', bg:'#E0F2FE', c:'#0C4A6E', pbg:'#F0F9FF' },
+    '.DOC':     { e:'📝', bg:'#FEF9C3', c:'#713F12', pbg:'#FEFCE8' },
+    '.DOCX':    { e:'📝', bg:'#FEF9C3', c:'#713F12', pbg:'#FEFCE8' },
+    '.MP3':     { e:'🎵', bg:'#DCFCE7', c:'#166534', pbg:'#F0FDF4' },
+    '.MP4':     { e:'🎬', bg:'#EDE9FE', c:'#4C1D95', pbg:'#F5F3FF' },
+    'Audio':    { e:'🎵', bg:'#DCFCE7', c:'#166534', pbg:'#F0FDF4' },
+    'Image':    { e:'🖼️', bg:'#DBEAFE', c:'#1E40AF', pbg:'#EFF6FF' },
+    'Video':    { e:'🎬', bg:'#EDE9FE', c:'#4C1D95', pbg:'#F5F3FF' },
+    'Document': { e:'📝', bg:'#FEF9C3', c:'#713F12', pbg:'#FEFCE8' },
+  };
+  const UC_COLORS = {
+    'Vendor Fair':      { bg:'#DBEAFE', c:'#1D4ED8', b:'#BFDBFE' },
+    'Job Fair':         { bg:'#CFFAFE', c:'#0E7490', b:'#A5F3FC' },
+    'Unit Meeting':     { bg:'#FEF9C3', c:'#854D0E', b:'#FDE68A' },
+    'Open House':       { bg:'#EDE9FE', c:'#6D28D9', b:'#DDD6FE' },
+    'Acquisition':      { bg:'#DCFCE7', c:'#15803D', b:'#BBF7D0' },
+    'General Branding': { bg:'#CCFBF1', c:'#0F766E', b:'#99F6E4' },
+    'Other':            { bg:'#F1F5F9', c:'#475569', b:'#E2E8F0' },
+  };
+
+  // ── State ───────────────────────────────────────────────────────────────────
+  let all = [], activeUC = new Set(), activeFmt = new Set(), selPriority = '';
+
+  // ── Airtable API ─────────────────────────────────────────────────────────────
+  const headers = () => ({ 'Authorization': `Bearer ${PAT}`, 'Content-Type': 'application/json' });
+
+  async function fetchAllAssets() {
+    let records = [], offset = '';
+    const fieldParams = Object.values(AF).map(f => `fields%5B%5D=${f}`).join('&');
+
+    do {
+      const url = `${AIRTABLE}/${BASE}/${ASSETS_TBL}?returnFieldsByFieldId=true&pageSize=100&${fieldParams}${offset ? '&offset=' + encodeURIComponent(offset) : ''}`;
+      const resp = await fetch(url, { headers: headers() });
+      if (!resp.ok) throw new Error(`Airtable API error: ${resp.status} ${resp.statusText}`);
+      const data = await resp.json();
+      records = records.concat(data.records || []);
+      offset = data.offset || '';
+    } while (offset);
+
+    return records;
+  }
+
+  async function createRequest(fields) {
+    const resp = await fetch(`${AIRTABLE}/${BASE}/${REQUEST_TBL}`, {
+      method: 'POST',
+      headers: headers(),
+      body: JSON.stringify({ records: [{ fields }] }),
+    });
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${resp.status}`);
+    }
+    return resp.json();
+  }
+
+  // ── Load & parse ─────────────────────────────────────────────────────────────
+  async function load() {
+    try {
+      const records = await fetchAllAssets();
+
+      all = records.map(rec => {
+        const cv = rec.fields || {};
+        const attachments = cv[AF.asset] || [];
+        const att = attachments[0];
+        // Get largest available thumbnail — falls back to full URL for non-image files
+        const thumbUrl = att?.thumbnails?.large?.url
+                      ?? att?.thumbnails?.full?.url
+                      ?? (att?.type?.startsWith('image/') ? att?.url : null);
+        return {
+          id:       rec.id,
+          name:     cv[AF.name] || 'Untitled',
+          useCases: (cv[AF.useCase] || []).map(u => u.name ?? u),
+          link:     cv[AF.link] || '',
+          format:   cv[AF.format]?.name ?? cv[AF.format] ?? '',
+          category: cv[AF.category]?.name ?? cv[AF.category] ?? '',
+          updated:  cv[AF.updated] || '',
+          thumbUrl,
+        };
+      });
+
+      buildFilters();
+      applyFilters();
+    } catch(e) {
+      document.getElementById('assetGrid').innerHTML =
+        `<div class="error-card">
+          <strong>Could not load assets</strong>
+          <small>${e.message}</small>
+        </div>`;
+      document.getElementById('resultsCount').textContent = '';
+    }
+  }
+
+  // ── Filters ──────────────────────────────────────────────────────────────────
+  function buildFilters() {
+    const ucs = new Set(), fmts = new Set();
+    all.forEach(a => {
+      a.useCases.forEach(u => ucs.add(u));
+      if (a.format) fmts.add(a.format);
+    });
+    const ucRow  = document.getElementById('ucRow');
+    const fmtRow = document.getElementById('fmtRow');
+    ucRow.querySelectorAll('.filter-pill').forEach(el => el.remove());
+    fmtRow.querySelectorAll('.filter-pill').forEach(el => el.remove());
+    [...ucs].sort().forEach(v => ucRow.appendChild(pill(v, activeUC)));
+    [...fmts].sort().forEach(v => fmtRow.appendChild(pill(v, activeFmt)));
+  }
+
+  function pill(val, set) {
+    const el = document.createElement('button');
+    el.className = 'filter-pill'; el.textContent = val;
+    el.onclick = () => {
+      set.has(val) ? (set.delete(val), el.classList.remove('active'))
+                   : (set.add(val),    el.classList.add('active'));
+      applyFilters();
+    };
+    return el;
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    const filtered = all.filter(a =>
+      (!q        || a.name.toLowerCase().includes(q))
+      && (!activeUC.size  || a.useCases.some(u => activeUC.has(u)))
+      && (!activeFmt.size || activeFmt.has(a.format))
+    );
+    render(filtered);
+    const el = document.getElementById('resultsCount');
+    el.innerHTML = filtered.length === all.length
+      ? `Showing <strong>${all.length}</strong> assets`
+      : `Showing <strong>${filtered.length}</strong> of <strong>${all.length}</strong> assets`;
+  }
+
+  // ── Render ───────────────────────────────────────────────────────────────────
+  function render(assets) {
+    const grid = document.getElementById('assetGrid');
+    if (!assets.length) {
+      grid.innerHTML = `<div class="state-box"><div style="font-size:40px">🔍</div><p>No assets match your current filters.</p></div>`;
+      return;
+    }
+    grid.innerHTML = assets.map(card).join('');
+  }
+
+  function card(a) {
+    const fmt     = FMT[a.format] || { e:'📁', bg:'#F1F5F9', c:'#475569', pbg:'#F8FAFC' };
+    const canDL   = a.category === 'Grab it' && a.link;
+    const safeName = a.name.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    const dateStr = a.updated
+      ? 'Updated ' + new Date(a.updated + 'T00:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})
+      : '';
+    const ucTags = a.useCases.map(uc => {
+      const col = UC_COLORS[uc] || UC_COLORS['Other'];
+      return `<span class="use-case-tag" style="background:${col.bg};color:${col.c};border-color:${col.b}">${uc}</span>`;
+    }).join('');
+    const btn = canDL
+      ? `<a href="${a.link}" target="_blank" rel="noopener" class="action-btn grab">
+           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+           Download
+         </a>`
+      : `<button class="action-btn req" onclick="openModal('${safeName}')">
+           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+           Request This Asset
+         </button>`;
+
+    // Image preview: on a standalone page, external img src works perfectly.
+    // Thumbnails are fetched fresh on every page load, so URLs are always valid.
+    const preview = a.thumbUrl
+      ? `<img
+           class="preview-img"
+           src="${a.thumbUrl}"
+           alt="${a.name}"
+           loading="lazy"
+           onload="this.classList.add('loaded'); this.previousElementSibling.classList.add('hidden')"
+           onerror="this.parentElement.querySelector('.preview-shimmer').classList.add('done')"
+         >`
+      : '';
+
+    return `
+      <div class="asset-card">
+        <div class="card-preview">
+          <div class="preview-shimmer${a.thumbUrl ? '' : ' done'}"></div>
+          <div class="preview-placeholder" style="background:${fmt.pbg}">
+            <div class="p-icon">${fmt.e}</div>
+            <div class="p-label">${a.format || 'Asset'}</div>
+          </div>
+          ${preview}
+          <span class="format-badge-overlay" style="background:${fmt.bg};color:${fmt.c}">${a.format || 'File'}</span>
+        </div>
+        <div class="card-body">
+          <div class="card-name">${a.name}</div>
+          ${ucTags ? `<div class="use-cases">${ucTags}</div>` : ''}
+          ${dateStr ? `<div class="card-meta">${dateStr}</div>` : ''}
+          <div class="card-actions">${btn}</div>
+        </div>
+      </div>`;
+  }
+
+  // ── Priority ─────────────────────────────────────────────────────────────────
+  function setPriority(val) {
+    selPriority = val;
+    document.getElementById('p-high').className = 'priority-opt' + (val === 'High'   ? ' sel-high' : '');
+    document.getElementById('p-med').className  = 'priority-opt' + (val === 'Medium' ? ' sel-med'  : '');
+    document.getElementById('p-low').className  = 'priority-opt' + (val === 'Low'    ? ' sel-low'  : '');
+  }
+
+  // ── Modal ─────────────────────────────────────────────────────────────────────
+  function openModal(assetName) {
+    document.getElementById('modalForm').style.display    = '';
+    document.getElementById('modalSuccess').style.display = 'none';
+    document.getElementById('formErr').style.display      = 'none';
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = false; btn.textContent = 'Submit Request';
+    ['rName','rRequestor','rEmail','rRegion','rDueReason','rNotes'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('rType').value = '';
+    document.getElementById('rDue').value  = '';
+    setPriority(''); selPriority = '';
+    document.getElementById('modalSub').textContent = assetName
+      ? `Requesting: ${assetName}`
+      : "Tell us what you need and we'll get it made";
+    if (assetName) document.getElementById('rName').value = assetName;
+    document.getElementById('modalOverlay').classList.add('open');
+    setTimeout(() => document.getElementById('rName').focus(), 200);
+  }
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); }
+  function overlayClick(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // ── Submit ────────────────────────────────────────────────────────────────────
+  async function submitRequest() {
+    const name      = document.getElementById('rName').value.trim();
+    const requestor = document.getElementById('rRequestor').value.trim();
+    const email     = document.getElementById('rEmail').value.trim();
+    const errEl     = document.getElementById('formErr');
+
+    function showErr(msg) {
+      errEl.className = 'form-error'; errEl.textContent = msg;
+      errEl.style.display = ''; errEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    if (!name)      return showErr('Please tell us what you need (first field).');
+    if (!requestor) return showErr('Please enter your name.');
+    if (!email)     return showErr('Please enter your email address.');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showErr('Please enter a valid email address.');
+
+    errEl.style.display = 'none';
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Submitting…';
+
+    const fields = { [RF.name]: name, [RF.requestor]: requestor, [RF.email]: email };
+    const typ = document.getElementById('rType').value;             if (typ)        fields[RF.type]      = typ;
+    const pri = selPriority;                                         if (pri)        fields[RF.priority]  = pri;
+    const due = document.getElementById('rDue').value;              if (due)        fields[RF.due]       = due;
+    const dr  = document.getElementById('rDueReason').value.trim(); if (dr)         fields[RF.dueReason] = dr;
+    const reg = document.getElementById('rRegion').value.trim();    if (reg)        fields[RF.region]    = reg;
+    const notes = document.getElementById('rNotes').value.trim();   if (notes)      fields[RF.notes]     = notes;
+
+    try {
+      await createRequest(fields);
+      document.getElementById('modalForm').style.display    = 'none';
+      document.getElementById('modalSuccess').style.display = '';
+    } catch(e) {
+      showErr('Something went wrong submitting your request. Please try again. (' + e.message + ')');
+      btn.disabled = false; btn.textContent = 'Submit Request';
+    }
+  }
+
+  // ── Boot ──────────────────────────────────────────────────────────────────────
+  load();
+</script>
+</body>
+</html>
